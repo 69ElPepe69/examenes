@@ -12,10 +12,8 @@ import java.util.TimerTask;
 public class QuestionDisplay extends JFrame {
     private List<Question> questions;
     private int currentQuestionIndex = 0;
-    private JLabel titleLabel;
-    private JLabel stimulusLabel;
     private JTextArea promptArea;
-    private JCheckBox[] checkboxButtons;
+    private JPanel checkboxPanel; 
     private JButton nextButton;
     private Timer timer;
     private JLabel timerLabel;
@@ -30,25 +28,27 @@ public class QuestionDisplay extends JFrame {
         setTitle("Multiple Choice Quiz");
         setSize(600, 400);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new GridLayout(0, 1));
+        setLayout(new BorderLayout(10, 10)); // Ajustamos el espaciado entre los componentes del BorderLayout
 
         // Inicialización de componentes
-        titleLabel = new JLabel();
-        stimulusLabel = new JLabel();
         promptArea = new JTextArea();
         promptArea.setEditable(false);
+        promptArea.setLineWrap(true); 
+        promptArea.setWrapStyleWord(true); // Aseguramos que las palabras no se corten en mitad de línea
 
-        // Añadir componentes al contenedor
-        add(titleLabel);
-        add(stimulusLabel);
-        add(promptArea);
+        // Panel principal que contiene todos los componentes
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new GridLayout(0, 1, 5, 5)); 
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5)); 
 
-        // Inicialización de botones de opción
-        checkboxButtons = new JCheckBox[4];
-        for (int i = 0; i < checkboxButtons.length; i++) {
-            checkboxButtons[i] = new JCheckBox();
-            add(checkboxButtons[i]);
-        }
+        // Añadir los componentes al panel
+        mainPanel.add(new JScrollPane(promptArea)); // Agregar el JTextArea dentro de un JScrollPane
+
+        // Crear un panel para los checkboxes
+        checkboxPanel = new JPanel();
+        checkboxPanel.setLayout(new BoxLayout(checkboxPanel, BoxLayout.Y_AXIS)); 
+        checkboxPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        mainPanel.add(checkboxPanel);
 
         // Botón para pasar a la siguiente pregunta
         nextButton = new JButton("Siguiente");
@@ -59,11 +59,17 @@ public class QuestionDisplay extends JFrame {
                 showNextQuestion();
             }
         });
-        add(nextButton);
+        mainPanel.add(nextButton);
 
         // Inicializar y añadir el temporizador
         timerLabel = new JLabel();
-        add(timerLabel);
+        mainPanel.add(timerLabel);
+
+        // Envolver el panel principal en un JScrollPane
+        JScrollPane scrollPane = new JScrollPane(mainPanel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED); 
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER); 
+        add(scrollPane, BorderLayout.CENTER); 
 
         // Iniciar el temporizador
         startTimer();
@@ -75,30 +81,27 @@ public class QuestionDisplay extends JFrame {
     private void showQuestion() {
         if (currentQuestionIndex < questions.size()) {
             Question q = questions.get(currentQuestionIndex);
-            titleLabel.setText("Title: " + q.getTitle());
-            stimulusLabel.setText("Stimulus: " + q.getStimulus());
-            promptArea.setText(q.getPrompt());
 
-            // Verificar el tamaño de choices y asegurarse de que no haya más opciones que botones
-            if (q.getChoices().size() > checkboxButtons.length) {
-                throw new IllegalStateException("Más opciones que botones de elección disponibles");
+            // Unir título, estímulo y pregunta en un solo bloque de texto
+            String fullText = "Title: " + q.getTitle() + "\n\n"
+                            + "Stimulus: " + q.getStimulus() + "\n\n"
+                            + q.getPrompt();
+            promptArea.setText(fullText);
+
+            // Limpiar el panel de checkboxes
+            checkboxPanel.removeAll();
+
+            // Crear los checkboxes dinámicamente según el número de opciones
+            for (int i = 0; i < q.getChoices().size(); i++) {
+                Question.Choice choice = q.getChoices().get(i);
+                JCheckBox checkBox = new JCheckBox(choice.getContent());
+                checkBox.setActionCommand(choice.getId());
+                checkboxPanel.add(checkBox);
             }
 
-            // Limpiar y actualizar los botones de opción
-            for (int i = 0; i < checkboxButtons.length; i++) {
-                if (i < q.getChoices().size()) {
-                    Question.Choice choice = q.getChoices().get(i);
-                    checkboxButtons[i].setText(choice.getContent());
-                    checkboxButtons[i].setActionCommand(choice.getId());
-                } else {
-                    checkboxButtons[i].setText(""); // Limpiar botones no utilizados
-                }
-            }
-
-            // Deseleccionar todos los botones
-            for (JCheckBox button : checkboxButtons) {
-                button.setSelected(false);
-            }
+            // Actualizar la interfaz
+            revalidate();
+            repaint();
 
             currentQuestionIndex++;
         } else {
@@ -117,9 +120,10 @@ public class QuestionDisplay extends JFrame {
     }
 
     private String getSelectedChoiceId() {
-        for (JCheckBox button : checkboxButtons) {
-            if (button.isSelected()) {
-                return button.getActionCommand();
+        for (Component comp : checkboxPanel.getComponents()) {
+            JCheckBox checkBox = (JCheckBox) comp;
+            if (checkBox.isSelected()) {
+                return checkBox.getActionCommand();
             }
         }
         return null;
